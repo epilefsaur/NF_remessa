@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Pagamento de Guia</title>
+    <!-- Carregando Supabase via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h2 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        input[readonly] {
+            background-color: #e9ecef;
+            color: #495057;
+            cursor: not-allowed;
+            font-weight: bold;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        /* Estilo para botão desabilitado */
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #mensagem {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+            min-height: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+
+        /* Admin e edição */
+        .admin-btn { position: absolute; top: 16px; right: 16px; background:#007bff; padding:8px 12px; color:#fff; border-radius:6px; cursor:pointer; border:none; }
+        .admin-bar { display:none; margin-bottom:10px; gap:8px; }
+        .admin-bar.active { display:flex; }
+        .admin-only { display: inline-block; }
+        .editable { outline: 2px dashed transparent; }
+        .editable[contenteditable="true"] { outline-color: #ffc107; }
+        /* Modal simples */
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); justify-content:center; align-items:center; }
+        .modal.show { display:flex; }
+        .modal .card { background:#fff; padding:16px; border-radius:8px; width:320px; }
+    </style>
+</head>
+<body>
+
+    <button class="admin-btn" onclick="openLoginModal()">Admin</button>
+
+    <div class="container">
+        <div class="admin-bar admin-only" id="adminBar">
+            <button onclick="enterEditMode()" id="btnEnableEdit">Ativar Edição</button>
+            <button onclick="saveHTML()" id="btnSaveHTML">Salvar HTML</button>
+            <button onclick="logoutAdmin()" id="btnLogout">Sair</button>
+        </div>
+
+        <h2 class="editable">Confirmação de Guia</h2>
+        
+        <div class="form-group">
+            <label for="nf" class="editable">Nota Fiscal</label>
+            <input type="text" id="nf" readonly>
+        </div>
+
+        <div class="form-group">
+            <label for="serie" class="editable">Série</label>
+            <input type="text" id="serie" readonly>
+        </div>
+
+        <div class="form-group">
+            <label for="empresa" class="editable">Empresa Emitente</label>
+            <input type="text" id="empresa" readonly>
+        </div>
+
+        <div class="form-group">
+            <label for="data_pagamento" class="editable">Data de Pagamento</label>
+            <input type="date" id="data_pagamento" required>
+        </div>
+
+        <button onclick="gravarDados()" id="btnGravar">Confirmar Pagamento</button>
+        <div id="mensagem"></div>
+    </div>
+
+    <script>
+        // --- CONFIGURAÇÃO DO SUPABASE ---
+        const SUPABASE_URL = 'https://aisaxebilbxjjpvsfcyf.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_6My2b6AfRWQ-z812UZ-NNw_WVqUAFs0';
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- EXECUTAR AO CARREGAR A PÁGINA ---
+        document.addEventListener('DOMContentLoaded', function() {
+            definirDataHoje();
+            lerParametrosURL();
+        });
+
+        function definirDataHoje() {
+            const hoje = new Date();
+            const ano = hoje.getFullYear();
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            document.getElementById('data_pagamento').value = `${ano}-${mes}-${dia}`;
+        }
+
+        function lerParametrosURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const numero = urlParams.get('numero');
+
+            if (numero && numero.length === 17) {
+                const nf = parseInt(numero.substring(0, 9), 10);
+                const serie = parseInt(numero.substring(9, 12), 10);
+                const empresa = parseInt(numero.substring(12, 17), 10);
+
+                document.getElementById('nf').value = nf;
+                document.getElementById('serie').value = serie;
+                document.getElementById('empresa').value = empresa;
+            } else {
+                mostrarMensagem("Link inválido ou sem número.", "error");
+                document.getElementById('btnGravar').disabled = true;
+            }
+        }
+
+        async function gravarDados() {
+            const btn = document.getElementById('btnGravar');
+            const nf = parseInt(document.getElementById('nf').value);
+            const serie = parseInt(document.getElementById('serie').value);
+            const empresa = parseInt(document.getElementById('empresa').value);
+            const dataPagamento = document.getElementById('data_pagamento').value;
+
+            if (!dataPagamento) {
+                mostrarMensagem("Informe a data de pagamento.", "error");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "Verificando...";
+            mostrarMensagem("", ""); // Limpa mensagem anterior
+
+            try {
+                // 1. VERIFICAÇÃO DE DUPLICIDADE
+                // Busca se já existe um registro com a mesma NF, Série e Empresa
+                const { data: existentes, error: erroConsulta } = await supabaseClient
+                    .from('registro_guias')
+                    .select('id, data_pagamento')
+                    .eq('nota_fiscal', nf)
+                    .eq('serie', serie)
+                    .eq('empresa_emitente', empresa);
+
+                if (erroConsulta) throw erroConsulta;
+
+                // Se retornou algum dado, é duplicado
+                if (existentes.length > 0) {
+                    // Formata a data retornada para exibir ao usuário
+                    const dataFormatada = new Date(existentes[0].data_pagamento).toLocaleDateString('pt-BR');
+                    
+                    mostrarMensagem(`⚠️ Esta nota já foi registrada!\nPagamento em: ${dataFormatada}`, "warning");
+                    btn.disabled = false;
+                    btn.innerText = "Confirmar Pagamento";
+                    return; // Para a execução aqui
+                }
+
+                // 2. GRAVAÇÃO SE NÃO EXISTIR
+                btn.innerText = "Gravando...";
+
+                const { error: erroInsercao } = await supabaseClient
+                    .from('registro_guias')
+                    .insert([{ 
+                        nota_fiscal: nf,
+                        serie: serie,
+                        empresa_emitente: empresa,
+                        data_pagamento: dataPagamento
+                    }]);
+
+                if (erroInsercao) throw erroInsercao;
+
+                mostrarMensagem("✅ Pagamento confirmado com sucesso!", "success");
+                btn.innerText = "Registrado";
+                btn.style.backgroundColor = "#218838";
+                
+            } catch (error) {
+                console.error(error);
+                mostrarMensagem("Erro no sistema: " + error.message, "error");
+                btn.disabled = false;
+                btn.innerText = "Tentar Novamente";
+            }
+        }
+
+        function mostrarMensagem(texto, tipo) {
+            const msg = document.getElementById('mensagem');
+            msg.innerText = texto;
+            
+            // Remove as classes antigas e adiciona a nova
+            msg.classList.remove('success', 'error', 'warning');
+            if(tipo) msg.classList.add(tipo);
+        }
+
+        // ---------------- Admin / Edição ----------------
+        // Credenciais simples (altere conforme necessário)
+        const ADMIN_USER = 'admin';
+        const ADMIN_PASS = 'admin123';
+
+        function openLoginModal() {
+            // simples prompt para credenciais
+            const user = prompt('Usuário:');
+            if (!user) return;
+            const pass = prompt('Senha:');
+            if (!pass) return;
+            doLogin(user, pass);
+        }
+
+        function doLogin(user, pass) {
+            if (user === ADMIN_USER && pass === ADMIN_PASS) {
+                sessionStorage.setItem('isAdmin', '1');
+                applyAdminUI(true);
+                alert('Logado como admin');
+            } else {
+                alert('Credenciais inválidas');
+            }
+        }
+
+        function applyAdminUI(active) {
+            const adminBar = document.getElementById('adminBar');
+            const adminBtns = document.querySelectorAll('.admin-only');
+            if (active) {
+                adminBar.classList.add('active');
+                adminBtns.forEach(el => el.style.display = 'inline-block');
+                // enable edit mode by default for admin
+                enableEditing(true);
+            } else {
+                adminBar.classList.remove('active');
+                adminBtns.forEach(el => el.style.display = 'none');
+                enableEditing(false);
+            }
+        }
+
+        function checkAdminOnLoad() {
+            if (sessionStorage.getItem('isAdmin') === '1') {
+                applyAdminUI(true);
+            } else {
+                applyAdminUI(false);
+            }
+        }
+
+        function enableEditing(flag) {
+            const editables = document.querySelectorAll('.editable');
+            editables.forEach(el => {
+                el.contentEditable = flag ? 'true' : 'false';
+            });
+            const btn = document.getElementById('btnEnableEdit');
+            if (btn) btn.innerText = flag ? 'Desativar Edição' : 'Ativar Edição';
+        }
+
+        function enterEditMode() {
+            const currently = document.querySelector('.editable')?.isContentEditable;
+            enableEditing(!currently);
+        }
+
+        function logoutAdmin() {
+            sessionStorage.removeItem('isAdmin');
+            applyAdminUI(false);
+            alert('Logout realizado');
+        }
+
+        // Gera um HTML atualizado com as edições do DOM e baixa como index.html
+        function saveHTML() {
+            // Clona o documento para remover elementos admin-only antes de salvar
+            const cloneDoc = document.documentElement.cloneNode(true);
+            // remove admin-only elements
+            cloneDoc.querySelectorAll('.admin-only').forEach(n => n.remove());
+            // garante que campos input mantenham seus valores
+            const inputsOrig = document.querySelectorAll('input');
+            inputsOrig.forEach(inp => {
+                const selector = generateSelectorFor(inp);
+                const target = cloneDoc.querySelector(selector);
+                if (target) target.setAttribute('value', inp.value);
+            });
+
+            const html = '<!DOCTYPE html>\n' + cloneDoc.outerHTML;
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            alert('HTML gerado para download. Substitua o arquivo index.html no repositório com este arquivo para publicar as alterações.');
+        }
+
+        // Gera um seletor simples para localizar o input correspondente no clone
+        function generateSelectorFor(el) {
+            if (el.id) return '#' + el.id;
+            if (el.name) return '[name="' + el.name + '"]';
+            return el.tagName.toLowerCase();
+        }
+
+        // Checa se admin estava logado ao carregar
+        document.addEventListener('DOMContentLoaded', checkAdminOnLoad);
+    </script>
+</body>
+</html>
