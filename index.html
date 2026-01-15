@@ -5,214 +5,457 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Pagamento</title>
     <style>
-        /* ... (mantenha todo o CSS igual) ... */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .info-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 5px;
+        }
+        
+        .info-box h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .info-value {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="date"]:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 15px;
+            color: #3498db;
+        }
+        
+        .success-message {
+            display: none;
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: center;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: center;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .url-info {
+            background-color: #e8f4fc;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #2c3e50;
+            display: none;
+        }
+        
+        .url-info code {
+            background-color: #f1f1f1;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
-    <!-- ... (mantenha todo o HTML igual até o script) ... -->
+    <div class="container">
+        <h1>Registro de Pagamento</h1>
+        
+        <div id="urlErrorMessage" class="error-message">
+            Link inválido ou sem número.
+            <br><br>
+            <strong>Use um link válido como:</strong>
+            <br>
+            <code>https://epilefsaur.github.io/NF_remessa/?numero=00006328700100324</code>
+            <br><br>
+            <a href="?numero=00006328700100324" style="color: #721c24; font-weight: bold;">
+                Clique aqui para testar com um exemplo
+            </a>
+        </div>
+        
+        <div id="mainContent" style="display: none;">
+            <div class="info-box">
+                <h3>Informações da Nota Fiscal</h3>
+                <div class="info-row">
+                    <span class="info-label">Nota Fiscal:</span>
+                    <span id="nota-fiscal" class="info-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Série:</span>
+                    <span id="serie" class="info-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Empresa Emitente:</span>
+                    <span id="empresa" class="info-value">-</span>
+                </div>
+            </div>
+            
+            <form id="pagamentoForm">
+                <div class="form-group">
+                    <label for="dataPagamento">Data de Pagamento:</label>
+                    <input type="date" id="dataPagamento" required>
+                </div>
+                
+                <button type="submit" class="btn" id="submitBtn">
+                    Confirmar Pagamento
+                </button>
+                
+                <div class="loading" id="loading">
+                    Processando...
+                </div>
+            </form>
+            
+            <div class="success-message" id="successMessage">
+                <strong>✓ Pagamento registrado com sucesso!</strong>
+                <br><br>
+                <div style="text-align: left; background: white; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                    <strong>Dados registrados:</strong><br>
+                    Nota Fiscal: <span id="success-nota"></span><br>
+                    Série: <span id="success-serie"></span><br>
+                    Empresa: <span id="success-empresa"></span><br>
+                    Data Pagamento: <span id="success-data"></span>
+                </div>
+            </div>
+            
+            <div id="errorMessage" class="error-message">
+                Ocorreu um erro ao registrar o pagamento.
+            </div>
+            
+            <div class="url-info" id="urlInfo">
+                <p><strong>Como usar:</strong> Passe o número como parâmetro na URL:</p>
+                <p><code>https://epilefsaur.github.io/NF_remessa/?numero=00006328700100324</code></p>
+                <p><small>Substitua o número pelo seu valor real</small></p>
+            </div>
+        </div>
+        
+        <footer>
+            Sistema de Registro de Pagamentos - NF Remessa
+        </footer>
+    </div>
+
+    <!-- Incluir a biblioteca do Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
-        // Variáveis globais
-        let supabaseClient;
-        let infoGlobal = {};
-        let numeroParamGlobal = '';
-        
-        // Função para inicializar o Supabase
-        function inicializarSupabase() {
-            if (!supabaseClient) {
-                // Configuração do Supabase - SUBSTITUA COM SUAS CREDENCIAIS
-                const SUPABASE_URL = 'https://seu-projeto.supabase.co';
-                const SUPABASE_ANON_KEY = 'sua-chave-anon-publica';
-                
-                // Verificar se a biblioteca do Supabase está carregada
-                if (typeof window.supabase !== 'undefined') {
-                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    console.log('Supabase inicializado com sucesso');
-                } else {
-                    console.error('Biblioteca do Supabase não carregada');
-                }
-            }
-            return supabaseClient;
-        }
-        
-        // Função para obter parâmetros da URL
-        function getParametroURL(nome) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(nome);
-        }
-        
-        // Função para formatar número (remover zeros à esquerda)
-        function formatarNumero(numeroStr) {
-            const numero = parseInt(numeroStr, 10);
-            return isNaN(numero) ? "0" : numero.toString();
-        }
-        
-        // Função para extrair informações do número
-        function extrairInformacoes(numeroCompleto) {
-            // Garantir que é string
-            const numeroStr = numeroCompleto.toString();
-            
-            // Se tiver menos de 17 dígitos, adicionar zeros à esquerda
-            let numeroFormatado = numeroStr;
-            while (numeroFormatado.length < 17) {
-                numeroFormatado = '0' + numeroFormatado;
-            }
-            
-            // Extrair as partes
-            const notaFiscal = numeroFormatado.substring(0, 9);
-            const serie = numeroFormatado.substring(9, 12);
-            const empresa = numeroFormatado.substring(12, 17);
-            
-            return {
-                notaFiscal: formatarNumero(notaFiscal),
-                serie: formatarNumero(serie),
-                empresa: formatarNumero(empresa),
-                numeroOriginal: numeroCompleto
-            };
-        }
-        
-        // Função para validar se o número tem formato correto
-        function validarNumero(numero) {
-            if (!numero) return false;
-            if (!/^\d+$/.test(numero)) return false;
-            const numeroLimpo = numero.replace(/^0+/, '');
-            return numeroLimpo.length >= 5;
-        }
-        
-        // Função para salvar no Supabase
-        async function salvarPagamento(dados) {
-            try {
-                const client = inicializarSupabase();
-                
-                if (!client) {
-                    throw new Error('Cliente Supabase não inicializado');
-                }
-                
-                const { data, error } = await client
-                    .from('pagamentos')
-                    .insert([
-                        {
-                            nota_fiscal: dados.notaFiscal,
-                            serie: dados.serie,
-                            empresa_emitente: dados.empresa,
-                            data_pagamento: dados.dataPagamento,
-                            numero_original: dados.numeroOriginal,
-                            data_registro: new Date().toISOString()
-                        }
-                    ]);
-                
-                if (error) throw error;
-                return { success: true, data };
-            } catch (error) {
-                console.error('Erro ao salvar no Supabase:', error);
-                return { success: false, error: error.message };
-            }
-        }
-        
-        // Quando o DOM estiver carregado
+        // Aguardar o DOM carregar completamente
         document.addEventListener('DOMContentLoaded', function() {
-            const urlErrorMessage = document.getElementById('urlErrorMessage');
-            const mainContent = document.getElementById('mainContent');
-            const urlInfo = document.getElementById('urlInfo');
+            // Variáveis globais
+            let supabaseClient;
+            let infoGlobal = {};
+            let numeroParamGlobal = '';
             
-            // Obter o número da URL
-            numeroParamGlobal = getParametroURL('numero');
-            
-            // Verificar se há um número válido na URL
-            if (validarNumero(numeroParamGlobal)) {
-                // Esconder mensagem de erro e mostrar conteúdo principal
-                urlErrorMessage.style.display = 'none';
-                urlInfo.style.display = 'none';
-                mainContent.style.display = 'block';
-                
-                // Extrair informações
-                infoGlobal = extrairInformacoes(numeroParamGlobal);
-                
-                // Exibir informações na página
-                document.getElementById('nota-fiscal').textContent = infoGlobal.notaFiscal;
-                document.getElementById('serie').textContent = infoGlobal.serie;
-                document.getElementById('empresa').textContent = infoGlobal.empresa;
-                
-                // Configurar data
-                const dataInput = document.getElementById('dataPagamento');
-                const hoje = new Date().toISOString().split('T')[0];
-                const umAnoAFrente = new Date();
-                umAnoAFrente.setFullYear(umAnoAFrente.getFullYear() + 1);
-                
-                dataInput.value = hoje;
-                dataInput.min = hoje;
-                dataInput.max = umAnoAFrente.toISOString().split('T')[0];
-                
-                // Configurar evento do formulário
-                const form = document.getElementById('pagamentoForm');
-                const submitBtn = document.getElementById('submitBtn');
-                const loading = document.getElementById('loading');
-                const successMessage = document.getElementById('successMessage');
-                const errorMessage = document.getElementById('errorMessage');
-                
-                form.addEventListener('submit', async function(e) {
-                    e.preventDefault();
+            // Função para inicializar o Supabase
+            function inicializarSupabase() {
+                if (!supabaseClient) {
+                    // Configuração do Supabase - SUBSTITUA COM SUAS CREDENCIAIS
+                    const SUPABASE_URL = 'https://aisaxebilbxjjpvsfcyf.supabase.co';
+                    const SUPABASE_ANON_KEY = 'sb_publishable_6My2b6AfRWQ-z812UZ-NNw_WVqUAFs0';
                     
-                    // Inicializar Supabase se ainda não foi
-                    inicializarSupabase();
-                    
-                    // Mostrar loading
-                    submitBtn.disabled = true;
-                    loading.style.display = 'block';
-                    successMessage.style.display = 'none';
-                    errorMessage.style.display = 'none';
-                    
-                    // Preparar dados
-                    const dadosPagamento = {
-                        notaFiscal: infoGlobal.notaFiscal,
-                        serie: infoGlobal.serie,
-                        empresa: infoGlobal.empresa,
-                        numeroOriginal: infoGlobal.numeroOriginal,
-                        dataPagamento: dataInput.value
-                    };
-                    
-                    // Salvar no Supabase
-                    const resultado = await salvarPagamento(dadosPagamento);
-                    
-                    // Esconder loading
-                    loading.style.display = 'none';
-                    
-                    if (resultado.success) {
-                        // Preencher dados de sucesso
-                        document.getElementById('success-nota').textContent = infoGlobal.notaFiscal;
-                        document.getElementById('success-serie').textContent = infoGlobal.serie;
-                        document.getElementById('success-empresa').textContent = infoGlobal.empresa;
-                        document.getElementById('success-data').textContent = dataInput.value;
-                        
-                        // Mostrar mensagem de sucesso
-                        successMessage.style.display = 'block';
-                        
-                        // Desabilitar formulário
-                        submitBtn.disabled = true;
-                        dataInput.disabled = true;
-                        
-                        // Mostrar informações de uso
-                        urlInfo.style.display = 'block';
-                        
-                        // Rolar para sucesso
-                        successMessage.scrollIntoView({ behavior: 'smooth' });
+                    // Verificar se a biblioteca do Supabase está carregada
+                    if (typeof window.supabase !== 'undefined') {
+                        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                        console.log('Supabase inicializado com sucesso');
                     } else {
-                        // Mostrar erro
-                        errorMessage.textContent = `Erro: ${resultado.error}`;
-                        errorMessage.style.display = 'block';
-                        submitBtn.disabled = false;
-                        errorMessage.scrollIntoView({ behavior: 'smooth' });
+                        console.error('Biblioteca do Supabase não carregada');
                     }
-                });
-            } else {
-                // Mostrar erro se não houver número
-                urlErrorMessage.style.display = 'block';
-                mainContent.style.display = 'none';
+                }
+                return supabaseClient;
             }
-        });
-        
-        // Verificar se as credenciais estão configuradas
-        window.addEventListener('load', function() {
+            
+            // Função para obter parâmetros da URL
+            function getParametroURL(nome) {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(nome);
+            }
+            
+            // Função para formatar número (remover zeros à esquerda)
+            function formatarNumero(numeroStr) {
+                const numero = parseInt(numeroStr, 10);
+                return isNaN(numero) ? "0" : numero.toString();
+            }
+            
+            // Função para extrair informações do número
+            function extrairInformacoes(numeroCompleto) {
+                // Garantir que é string
+                const numeroStr = numeroCompleto.toString();
+                
+                // Se tiver menos de 17 dígitos, adicionar zeros à esquerda
+                let numeroFormatado = numeroStr;
+                while (numeroFormatado.length < 17) {
+                    numeroFormatado = '0' + numeroFormatado;
+                }
+                
+                // Extrair as partes
+                const notaFiscal = numeroFormatado.substring(0, 9);
+                const serie = numeroFormatado.substring(9, 12);
+                const empresa = numeroFormatado.substring(12, 17);
+                
+                return {
+                    notaFiscal: formatarNumero(notaFiscal),
+                    serie: formatarNumero(serie),
+                    empresa: formatarNumero(empresa),
+                    numeroOriginal: numeroCompleto
+                };
+            }
+            
+            // Função para validar se o número tem formato correto
+            function validarNumero(numero) {
+                if (!numero) return false;
+                if (!/^\d+$/.test(numero)) return false;
+                const numeroLimpo = numero.replace(/^0+/, '');
+                return numeroLimpo.length >= 5;
+            }
+            
+            // Função para salvar no Supabase
+            async function salvarPagamento(dados) {
+                try {
+                    const client = inicializarSupabase();
+                    
+                    if (!client) {
+                        throw new Error('Cliente Supabase não inicializado');
+                    }
+                    
+                    const { data, error } = await client
+                        .from('pagamentos')
+                        .insert([
+                            {
+                                nota_fiscal: dados.notaFiscal,
+                                serie: dados.serie,
+                                empresa_emitente: dados.empresa,
+                                data_pagamento: dados.dataPagamento,
+                                numero_original: dados.numeroOriginal,
+                                data_registro: new Date().toISOString()
+                            }
+                        ]);
+                    
+                    if (error) throw error;
+                    return { success: true, data };
+                } catch (error) {
+                    console.error('Erro ao salvar no Supabase:', error);
+                    return { success: false, error: error.message };
+                }
+            }
+            
+            // Inicializar a página
+            function inicializarPagina() {
+                const urlErrorMessage = document.getElementById('urlErrorMessage');
+                const mainContent = document.getElementById('mainContent');
+                const urlInfo = document.getElementById('urlInfo');
+                
+                if (!urlErrorMessage || !mainContent) {
+                    console.error('Elementos do DOM não encontrados');
+                    return;
+                }
+                
+                // Obter o número da URL
+                numeroParamGlobal = getParametroURL('numero');
+                
+                // Verificar se há um número válido na URL
+                if (validarNumero(numeroParamGlobal)) {
+                    // Esconder mensagem de erro e mostrar conteúdo principal
+                    urlErrorMessage.style.display = 'none';
+                    if (urlInfo) urlInfo.style.display = 'none';
+                    mainContent.style.display = 'block';
+                    
+                    // Extrair informações
+                    infoGlobal = extrairInformacoes(numeroParamGlobal);
+                    
+                    // Exibir informações na página
+                    document.getElementById('nota-fiscal').textContent = infoGlobal.notaFiscal;
+                    document.getElementById('serie').textContent = infoGlobal.serie;
+                    document.getElementById('empresa').textContent = infoGlobal.empresa;
+                    
+                    // Configurar data
+                    const dataInput = document.getElementById('dataPagamento');
+                    const hoje = new Date().toISOString().split('T')[0];
+                    const umAnoAFrente = new Date();
+                    umAnoAFrente.setFullYear(umAnoAFrente.getFullYear() + 1);
+                    
+                    dataInput.value = hoje;
+                    dataInput.min = hoje;
+                    dataInput.max = umAnoAFrente.toISOString().split('T')[0];
+                    
+                    // Configurar evento do formulário
+                    const form = document.getElementById('pagamentoForm');
+                    const submitBtn = document.getElementById('submitBtn');
+                    const loading = document.getElementById('loading');
+                    const successMessage = document.getElementById('successMessage');
+                    const errorMessage = document.getElementById('errorMessage');
+                    
+                    form.addEventListener('submit', async function(e) {
+                        e.preventDefault();
+                        
+                        // Inicializar Supabase se ainda não foi
+                        inicializarSupabase();
+                        
+                        // Mostrar loading
+                        submitBtn.disabled = true;
+                        loading.style.display = 'block';
+                        successMessage.style.display = 'none';
+                        errorMessage.style.display = 'none';
+                        
+                        // Preparar dados
+                        const dadosPagamento = {
+                            notaFiscal: infoGlobal.notaFiscal,
+                            serie: infoGlobal.serie,
+                            empresa: infoGlobal.empresa,
+                            numeroOriginal: infoGlobal.numeroOriginal,
+                            dataPagamento: dataInput.value
+                        };
+                        
+                        // Salvar no Supabase
+                        const resultado = await salvarPagamento(dadosPagamento);
+                        
+                        // Esconder loading
+                        loading.style.display = 'none';
+                        
+                        if (resultado.success) {
+                            // Preencher dados de sucesso
+                            document.getElementById('success-nota').textContent = infoGlobal.notaFiscal;
+                            document.getElementById('success-serie').textContent = infoGlobal.serie;
+                            document.getElementById('success-empresa').textContent = infoGlobal.empresa;
+                            document.getElementById('success-data').textContent = dataInput.value;
+                            
+                            // Mostrar mensagem de sucesso
+                            successMessage.style.display = 'block';
+                            
+                            // Desabilitar formulário
+                            submitBtn.disabled = true;
+                            dataInput.disabled = true;
+                            
+                            // Mostrar informações de uso
+                            if (urlInfo) urlInfo.style.display = 'block';
+                            
+                            // Rolar para sucesso
+                            successMessage.scrollIntoView({ behavior: 'smooth' });
+                        } else {
+                            // Mostrar erro
+                            errorMessage.textContent = `Erro: ${resultado.error}`;
+                            errorMessage.style.display = 'block';
+                            submitBtn.disabled = false;
+                            errorMessage.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    });
+                } else {
+                    // Mostrar erro se não houver número
+                    urlErrorMessage.style.display = 'block';
+                    mainContent.style.display = 'none';
+                }
+            }
+            
+            // Executar inicialização
+            inicializarPagina();
+            
+            // Verificar se as credenciais estão configuradas
             const SUPABASE_URL = 'https://seu-projeto.supabase.co';
             const SUPABASE_ANON_KEY = 'sua-chave-anon-publica';
             
@@ -220,20 +463,20 @@
                 console.warn('ATENÇÃO: Configure as credenciais do Supabase no código!');
                 
                 // Adicionar aviso na página
-                const aviso = document.createElement('div');
-                aviso.className = 'error-message';
-                aviso.style.display = 'block';
-                aviso.style.marginTop = '20px';
-                aviso.innerHTML = `
-                    <strong>ATENÇÃO:</strong> Configure as credenciais do Supabase no código.
-                    <br>Substitua <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> com suas credenciais reais.
-                `;
-                document.querySelector('.container').appendChild(aviso);
+                const container = document.querySelector('.container');
+                if (container) {
+                    const aviso = document.createElement('div');
+                    aviso.className = 'error-message';
+                    aviso.style.display = 'block';
+                    aviso.style.marginTop = '20px';
+                    aviso.innerHTML = `
+                        <strong>ATENÇÃO:</strong> Configure as credenciais do Supabase no código.
+                        <br>Substitua <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> com suas credenciais reais.
+                    `;
+                    container.appendChild(aviso);
+                }
             }
         });
     </script>
-    
-    <!-- Incluir a biblioteca do Supabase NO FINAL para garantir que carregue primeiro -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
