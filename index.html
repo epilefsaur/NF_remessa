@@ -141,23 +141,6 @@
             border: 1px solid #f5c6cb;
         }
         
-        .url-info {
-            background-color: #e8f4fc;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 20px;
-            font-size: 14px;
-            color: #2c3e50;
-            display: none;
-        }
-        
-        .url-info code {
-            background-color: #f1f1f1;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
-        
         footer {
             text-align: center;
             margin-top: 30px;
@@ -172,14 +155,6 @@
         
         <div id="urlErrorMessage" class="error-message">
             Link inválido ou sem número.
-            <br><br>
-            <strong>Use um link válido como:</strong>
-            <br>
-            <code>https://epilefsaur.github.io/NF_remessa/?numero=00006328700100324</code>
-            <br><br>
-            <a href="?numero=00006328700100324" style="color: #721c24; font-weight: bold;">
-                Clique aqui para testar com um exemplo
-            </a>
         </div>
         
         <div id="mainContent" style="display: none;">
@@ -229,17 +204,9 @@
             <div id="errorMessage" class="error-message">
                 Ocorreu um erro ao registrar o pagamento.
             </div>
-            
-            <div class="url-info" id="urlInfo">
-                <p><strong>Como usar:</strong> Passe o número como parâmetro na URL:</p>
-                <p><code>https://epilefsaur.github.io/NF_remessa/?numero=00006328700100324</code></p>
-                <p><small>Substitua o número pelo seu valor real</small></p>
-            </div>
         </div>
         
-        <footer>
-            Sistema de Registro de Pagamentos - NF Remessa
-        </footer>
+        <footer></footer>
     </div>
 
     <!-- Incluir a biblioteca do Supabase -->
@@ -248,28 +215,20 @@
     <script>
         // Aguardar o DOM carregar completamente
         document.addEventListener('DOMContentLoaded', function() {
-            // Variáveis globais
+            // Configuração do Supabase - SUBSTITUA COM SUAS CREDENCIAIS
+            const SUPABASE_URL = 'https://seu-projeto.supabase.co';
+            const SUPABASE_ANON_KEY = 'sua-chave-anon-publica';
+            
+            // Inicializar Supabase
             let supabaseClient;
+            if (typeof window.supabase !== 'undefined') {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase inicializado');
+            }
+            
+            // Variáveis globais
             let infoGlobal = {};
             let numeroParamGlobal = '';
-            
-            // Função para inicializar o Supabase
-            function inicializarSupabase() {
-                if (!supabaseClient) {
-                    // Configuração do Supabase - SUBSTITUA COM SUAS CREDENCIAIS
-                    const SUPABASE_URL = 'https://aisaxebilbxjjpvsfcyf.supabase.co';
-                    const SUPABASE_ANON_KEY = 'sb_publishable_6My2b6AfRWQ-z812UZ-NNw_WVqUAFs0';
-                    
-                    // Verificar se a biblioteca do Supabase está carregada
-                    if (typeof window.supabase !== 'undefined') {
-                        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                        console.log('Supabase inicializado com sucesso');
-                    } else {
-                        console.error('Biblioteca do Supabase não carregada');
-                    }
-                }
-                return supabaseClient;
-            }
             
             // Função para obter parâmetros da URL
             function getParametroURL(nome) {
@@ -318,27 +277,44 @@
             // Função para salvar no Supabase
             async function salvarPagamento(dados) {
                 try {
-                    const client = inicializarSupabase();
-                    
-                    if (!client) {
-                        throw new Error('Cliente Supabase não inicializado');
+                    if (!supabaseClient) {
+                        throw new Error('Supabase não inicializado');
                     }
                     
-                    const { data, error } = await client
-                        .from('pagamentos')
-                        .insert([
-                            {
-                                nota_fiscal: dados.notaFiscal,
-                                serie: dados.serie,
-                                empresa_emitente: dados.empresa,
-                                data_pagamento: dados.dataPagamento,
-                                numero_original: dados.numeroOriginal,
-                                data_registro: new Date().toISOString()
-                            }
-                        ]);
+                    // Tente diferentes nomes de tabela
+                    const tabelasParaTentar = ['pagamentos', 'registros_pagamentos', 'nf_pagamentos', 'payments'];
                     
-                    if (error) throw error;
-                    return { success: true, data };
+                    for (const tabela of tabelasParaTentar) {
+                        try {
+                            const { data, error } = await supabaseClient
+                                .from(tabela)
+                                .insert([
+                                    {
+                                        nota_fiscal: dados.notaFiscal,
+                                        serie: dados.serie,
+                                        empresa_emitente: dados.empresa,
+                                        data_pagamento: dados.dataPagamento,
+                                        numero_original: dados.numeroOriginal,
+                                        data_registro: new Date().toISOString()
+                                    }
+                                ]);
+                            
+                            if (error) {
+                                console.log(`Tabela ${tabela} não encontrada, tentando próxima...`);
+                                continue;
+                            }
+                            
+                            console.log(`Dados inseridos na tabela ${tabela}`);
+                            return { success: true, data, tabela: tabela };
+                            
+                        } catch (tabelaError) {
+                            console.log(`Erro na tabela ${tabela}:`, tabelaError.message);
+                            continue;
+                        }
+                    }
+                    
+                    throw new Error('Nenhuma tabela válida encontrada. Crie uma tabela chamada "pagamentos" no Supabase.');
+                    
                 } catch (error) {
                     console.error('Erro ao salvar no Supabase:', error);
                     return { success: false, error: error.message };
@@ -349,7 +325,6 @@
             function inicializarPagina() {
                 const urlErrorMessage = document.getElementById('urlErrorMessage');
                 const mainContent = document.getElementById('mainContent');
-                const urlInfo = document.getElementById('urlInfo');
                 
                 if (!urlErrorMessage || !mainContent) {
                     console.error('Elementos do DOM não encontrados');
@@ -363,7 +338,6 @@
                 if (validarNumero(numeroParamGlobal)) {
                     // Esconder mensagem de erro e mostrar conteúdo principal
                     urlErrorMessage.style.display = 'none';
-                    if (urlInfo) urlInfo.style.display = 'none';
                     mainContent.style.display = 'block';
                     
                     // Extrair informações
@@ -393,9 +367,6 @@
                     
                     form.addEventListener('submit', async function(e) {
                         e.preventDefault();
-                        
-                        // Inicializar Supabase se ainda não foi
-                        inicializarSupabase();
                         
                         // Mostrar loading
                         submitBtn.disabled = true;
@@ -432,14 +403,15 @@
                             submitBtn.disabled = true;
                             dataInput.disabled = true;
                             
-                            // Mostrar informações de uso
-                            if (urlInfo) urlInfo.style.display = 'block';
-                            
                             // Rolar para sucesso
                             successMessage.scrollIntoView({ behavior: 'smooth' });
                         } else {
                             // Mostrar erro
-                            errorMessage.textContent = `Erro: ${resultado.error}`;
+                            let mensagemErro = resultado.error;
+                            if (mensagemErro.includes('tabela')) {
+                                mensagemErro = 'Erro de configuração do banco de dados. Entre em contato com o suporte.';
+                            }
+                            errorMessage.textContent = `Erro: ${mensagemErro}`;
                             errorMessage.style.display = 'block';
                             submitBtn.disabled = false;
                             errorMessage.scrollIntoView({ behavior: 'smooth' });
@@ -454,28 +426,6 @@
             
             // Executar inicialização
             inicializarPagina();
-            
-            // Verificar se as credenciais estão configuradas
-            const SUPABASE_URL = 'https://seu-projeto.supabase.co';
-            const SUPABASE_ANON_KEY = 'sua-chave-anon-publica';
-            
-            if (SUPABASE_URL.includes('seu-projeto') || SUPABASE_ANON_KEY.includes('sua-chave')) {
-                console.warn('ATENÇÃO: Configure as credenciais do Supabase no código!');
-                
-                // Adicionar aviso na página
-                const container = document.querySelector('.container');
-                if (container) {
-                    const aviso = document.createElement('div');
-                    aviso.className = 'error-message';
-                    aviso.style.display = 'block';
-                    aviso.style.marginTop = '20px';
-                    aviso.innerHTML = `
-                        <strong>ATENÇÃO:</strong> Configure as credenciais do Supabase no código.
-                        <br>Substitua <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> com suas credenciais reais.
-                    `;
-                    container.appendChild(aviso);
-                }
-            }
         });
     </script>
 </body>
