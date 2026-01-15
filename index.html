@@ -247,13 +247,16 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
-        // Configuração do Supabase
-        // SUBSTITUA COM SUAS PRÓPRIAS CREDENCIAIS
-        const SUPABASE_URL = 'https://seu-projeto.supabase.co';
-        const SUPABASE_ANON_KEY = 'sua-chave-anon-publica';
-        
-        // Inicializar o cliente Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Verificar se supabase já está definido
+        if (typeof supabase === 'undefined') {
+            // Configuração do Supabase
+            // SUBSTITUA COM SUAS PRÓPRIAS CREDENCIAIS
+            const SUPABASE_URL = 'https://seu-projeto.supabase.co';
+            const SUPABASE_ANON_KEY = 'sua-chave-anon-publica';
+            
+            // Inicializar o cliente Supabase
+            var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
         
         // Variáveis globais para armazenar as informações
         let infoGlobal = {};
