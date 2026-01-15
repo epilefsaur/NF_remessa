@@ -141,37 +141,11 @@
             border: 1px solid #f5c6cb;
         }
         
-        .url-info {
-            background-color: #e8f4fc;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 20px;
-            font-size: 14px;
-            color: #2c3e50;
-        }
-        
-        .url-info code {
-            background-color: #f1f1f1;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
-        
         footer {
             text-align: center;
             margin-top: 30px;
             color: #7f8c8d;
             font-size: 14px;
-        }
-        
-        .debug-info {
-            background-color: #fff3cd;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-            font-size: 12px;
-            color: #856404;
-            font-family: monospace;
         }
     </style>
 </head>
@@ -179,7 +153,7 @@
     <div class="container">
         <h1>Registro de Pagamento</h1>
         
-        <div id="urlErrorMessage" class="error-message">
+        <div id="urlErrorMessage" class="error-message" style="display: none;">
             Link inválido ou sem número.
             <br><br>
             <strong>Use um link válido como:</strong>
@@ -226,22 +200,25 @@
             <div id="errorMessage" class="error-message" style="display: none;">
                 Ocorreu um erro ao registrar o pagamento.
             </div>
-            
-            <div id="debugInfo" class="debug-info" style="display: none;"></div>
-        </div>
-        
-        <div class="url-info">
-            <p><strong>Como usar:</strong> Passe o número como parâmetro na URL:</p>
-            <p><code>https://epilefsaur.github.io/NF_remessa/?numero=00006328700100324</code></p>
-            <p><small>Substitua o número pelo seu valor real</small></p>
         </div>
         
         <footer>
-            Sistema de Registro de Pagamentos
+            Sistema de Registro de Pagamentos - NF Remessa
         </footer>
     </div>
 
+    <!-- Incluir a biblioteca do Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script>
+        // Configuração do Supabase
+        // SUBSTITUA COM SUAS PRÓPRIAS CREDENCIAIS
+        const SUPABASE_URL = 'https://seu-projeto.supabase.co';
+        const SUPABASE_ANON_KEY = 'sua-chave-anon-publica';
+        
+        // Inicializar o cliente Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
         // Função para obter parâmetros da URL
         function getParametroURL(nome) {
             const urlParams = new URLSearchParams(window.location.search);
@@ -256,15 +233,8 @@
         
         // Função para extrair informações do número
         function extrairInformacoes(numeroCompleto) {
-            console.log("Processando número:", numeroCompleto);
-            
             // Garantir que é string
             const numeroStr = numeroCompleto.toString();
-            
-            // Primeiro remover zeros à esquerda para contar dígitos reais
-            const numeroSemZeros = numeroStr.replace(/^0+/, '');
-            console.log("Sem zeros à esquerda:", numeroSemZeros);
-            console.log("Tamanho real:", numeroSemZeros.length);
             
             // Se tiver menos de 17 dígitos, adicionar zeros à esquerda
             let numeroFormatado = numeroStr;
@@ -272,16 +242,10 @@
                 numeroFormatado = '0' + numeroFormatado;
             }
             
-            console.log("Número formatado para 17 dígitos:", numeroFormatado);
-            
             // Extrair as partes
             const notaFiscal = numeroFormatado.substring(0, 9); // 9 primeiros dígitos
             const serie = numeroFormatado.substring(9, 12);     // 3 próximos dígitos
             const empresa = numeroFormatado.substring(12, 17);  // 5 últimos dígitos
-            
-            console.log("Nota Fiscal (9 dígitos):", notaFiscal);
-            console.log("Série (3 dígitos):", serie);
-            console.log("Empresa (5 dígitos):", empresa);
             
             return {
                 notaFiscal: formatarNumero(notaFiscal),
@@ -295,31 +259,48 @@
         function validarNumero(numero) {
             if (!numero) return false;
             
-            // Verificar se é um número válido (pode ter zeros à esquerda)
+            // Verificar se é um número válido
             if (!/^\d+$/.test(numero)) return false;
             
             // O número deve ter pelo menos alguns dígitos
             const numeroLimpo = numero.replace(/^0+/, '');
-            return numeroLimpo.length >= 5; // Aceita números com pelo menos 5 dígitos reais
+            return numeroLimpo.length >= 5;
+        }
+        
+        // Função para salvar no Supabase
+        async function salvarPagamento(dados) {
+            try {
+                const { data, error } = await supabase
+                    .from('pagamentos') // Nome da sua tabela no Supabase
+                    .insert([
+                        {
+                            nota_fiscal: dados.notaFiscal,
+                            serie: dados.serie,
+                            empresa_emitente: dados.empresa,
+                            data_pagamento: dados.dataPagamento,
+                            numero_original: dados.numeroOriginal,
+                            data_registro: new Date().toISOString()
+                        }
+                    ]);
+                
+                if (error) throw error;
+                return { success: true, data };
+            } catch (error) {
+                console.error('Erro ao salvar no Supabase:', error);
+                return { success: false, error: error.message };
+            }
         }
         
         // Quando o DOM estiver carregado
         document.addEventListener('DOMContentLoaded', function() {
             const urlErrorMessage = document.getElementById('urlErrorMessage');
             const mainContent = document.getElementById('mainContent');
-            const debugInfo = document.getElementById('debugInfo');
             
             // Obter o número da URL
             const numeroParam = getParametroURL('numero');
-            console.log("Número parâmetro:", numeroParam);
-            
-            // Mostrar debug
-            debugInfo.innerHTML = `Parâmetro recebido: ${numeroParam || '(vazio)'}`;
-            debugInfo.style.display = 'block';
             
             // Verificar se há um número válido na URL
             if (validarNumero(numeroParam)) {
-                console.log("Número válido detectado");
                 // Esconder mensagem de erro e mostrar conteúdo principal
                 urlErrorMessage.style.display = 'none';
                 mainContent.style.display = 'block';
@@ -332,14 +313,67 @@
                 document.getElementById('serie').textContent = info.serie;
                 document.getElementById('empresa').textContent = info.empresa;
                 
-                // Configurar data
+                // Configurar data mínima (hoje)
                 const dataInput = document.getElementById('dataPagamento');
                 const hoje = new Date().toISOString().split('T')[0];
                 dataInput.value = hoje;
                 dataInput.min = hoje;
                 
+                // Manipular envio do formulário
+                const form = document.getElementById('pagamentoForm');
+                const submitBtn = document.getElementById('submitBtn');
+                const loading = document.getElementById('loading');
+                const successMessage = document.getElementById('successMessage');
+                const errorMessage = document.getElementById('errorMessage');
+                
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    // Mostrar loading
+                    submitBtn.disabled = true;
+                    loading.style.display = 'block';
+                    successMessage.style.display = 'none';
+                    errorMessage.style.display = 'none';
+                    
+                    // Preparar dados
+                    const dadosPagamento = {
+                        notaFiscal: info.notaFiscal,
+                        serie: info.serie,
+                        empresa: info.empresa,
+                        numeroOriginal: info.numeroOriginal,
+                        dataPagamento: dataInput.value
+                    };
+                    
+                    // Salvar no Supabase
+                    const resultado = await salvarPagamento(dadosPagamento);
+                    
+                    // Esconder loading
+                    loading.style.display = 'none';
+                    
+                    if (resultado.success) {
+                        // Mostrar mensagem de sucesso
+                        successMessage.style.display = 'block';
+                        
+                        // Desabilitar o formulário após sucesso
+                        submitBtn.disabled = true;
+                        dataInput.disabled = true;
+                        
+                        // Rolar para a mensagem de sucesso
+                        successMessage.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        // Mostrar mensagem de erro
+                        errorMessage.textContent = `Erro: ${resultado.error}`;
+                        errorMessage.style.display = 'block';
+                        
+                        // Reabilitar botão
+                        submitBtn.disabled = false;
+                        
+                        // Rolar para a mensagem de erro
+                        errorMessage.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
             } else {
-                console.log("Número inválido ou não fornecido");
+                // Mostrar mensagem de erro se não houver número válido
                 urlErrorMessage.style.display = 'block';
                 mainContent.style.display = 'none';
             }
